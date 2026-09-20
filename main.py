@@ -1,5 +1,5 @@
 import sys
-from crawl import extract_page_data
+from crawl import crawl_page
 
 def main():
 
@@ -11,6 +11,11 @@ def main():
         exit(1)
     else:
         print(f"starting crawl of {sys.argv[1]}")
+
+    data = crawl_page(sys.argv[1])
+    print(f"crawled through {len(data.keys())} sites")
+    
+    print(data.values())
 
 if __name__ == "__main__":
     main()

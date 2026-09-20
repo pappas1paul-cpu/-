@@ -1,4 +1,4 @@
-from urllib.parse import urlsplit, urljoin
+from urllib.parse import urlsplit, urljoin,urlparse
 from bs4 import BeautifulSoup, Tag
 from typing import TypedDict
 
@@ -9,9 +9,7 @@ class PageData(TypedDict):
      outgoing_links: list[str]
      image_urls: list[str]
 
-def normalize_url(self, url = None):
-    if url == None:
-         url = "http://www.boot.dev/blog/path/"
+def normalize_url(url = None):
     parsed = urlsplit(url)
     normalized = (parsed.netloc + parsed.path).rstrip('/').lower()
     return normalized
@@ -59,7 +57,48 @@ def extract_page_data(input_body, input_url):
           "outgoing_links":get_urls_from_html(input_body,input_url),
           "image_urls":get_images_from_html(input_body, input_url)}
 
-     
-            
+import requests
 
+def get_html(url):
+    headers = {"User-Agent": "BootCrawler/1.0"}
+    response = requests.get(url, headers=headers)
+    response.raise_for_status()
+    content_type = response.headers.get("Content-Type", "")
+    if "text/html" not in content_type:
+        raise ValueError(f"Expected text/html content, but received: {content_type}")
+    return response.text
+     
+
+def crawl_page(base_url, current_url=None, page_data=None):
+
+     if page_data is None:
+        page_data = {}
+        
+     if current_url is None:
+        current_url = base_url
+
+     if urlparse(base_url).hostname != urlparse(current_url).hostname:
+        return page_data
+
+     print(type(current_url), repr(current_url))
+     norm_url = normalize_url(current_url)
+
+     if norm_url in page_data:
+        return page_data
+
+     print(f"Crawling: {norm_url}")
+    
+     try:
+        html = get_html(current_url)
+     except Exception as e:
+        print(f"Skipping {current_url} due to error: {e}")
+        return page_data 
+
+     data = extract_page_data(html, current_url)
+     page_data[norm_url] = data
+
+     for link in data.get("outgoing_links", []): 
+        crawl_page(base_url, link, page_data)
+
+     return page_data
 
