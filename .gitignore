@@ -13,3 +13,5 @@ wheels/
 *.md
 uv.lock
 crawl.py
+pyproject.toml
+.gitignore
