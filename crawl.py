@@ -1,6 +1,51 @@
 from urllib.parse import urlsplit, urljoin,urlparse
 from bs4 import BeautifulSoup, Tag
 from typing import TypedDict
+import asyncio
+import aiohttp
+from aiohttp import ClientSession
+from asyncio import Lock, Semaphore
+
+
+class AsyncCrawler:
+     def __init__(self, base_url:str, base_domain:str, max_concurrency:int):
+        self.base_url = base_url
+        self.base_domain = base_domain
+        self.page_data = {}
+        self.visited = set()
+        self.lock = asyncio.Lock()
+        self.max_concurrency = max_concurrency
+        self.semaphore = asyncio.Semaphore(self.max_concurrency)
+
+     async def __aenter__(self):
+          self.session = aiohttp.ClientSession()
+          return self
+
+     async def __aexit__(self, exc_type, exc_val, exc_tb):
+          await self.session.close()
+
+     async def add_page_visit(self, normalized_url):
+          async with self.lock:
+               if normalized_url in self.visited:
+                   return False
+               else:
+                   self.visited.add(normalized_url)
+                   return True
+
+     async def get_html(self, url):
+          async with self.session.get(url, headers = {"User-Agent": "BootCrawler/1.0"}) as response:
+               response.raise_for_status()
+               content_type = response.headers.get("Content-Type", "")
+               if "text/html" not in content_type:
+                    raise ValueError(f"Expected text/html content, but received: {content_type}")
+               return await response.text()
+
+
+
+             
+
+     
+
 
 class PageData(TypedDict):
      url: str
@@ -58,16 +103,7 @@ def extract_page_data(input_body, input_url):
           "image_urls":get_images_from_html(input_body, input_url)}
 
 import requests
-
-def get_html(url):
-    headers = {"User-Agent": "BootCrawler/1.0"}
-    response = requests.get(url, headers=headers)
-    response.raise_for_status()
-    content_type = response.headers.get("Content-Type", "")
-    if "text/html" not in content_type:
-        raise ValueError(f"Expected text/html content, but received: {content_type}")
-    return response.text
-     
+    
 
 def crawl_page(base_url, current_url=None, page_data=None):
 
